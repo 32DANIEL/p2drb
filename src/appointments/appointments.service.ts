@@ -1,6 +1,7 @@
 /* eslint-disable prettier/prettier */
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -48,7 +49,10 @@ export class AppointmentsService {
 
   async listAppointments(userId: string, userRole: string) {
     try {
-      let query = this.appointmentsRepo.createQueryBuilder('a');
+      let query = this.appointmentsRepo
+        .createQueryBuilder('a')
+        .leftJoinAndSelect('a.user', 'paciente')
+        .leftJoinAndSelect('a.doctor', 'medico');
 
       if (userRole === 'patient') {
         query = query.where('a.id_user = :userId', { userId });
@@ -80,7 +84,7 @@ export class AppointmentsService {
       if (!appointment) throw new NotFoundException('Cita no encontrada');
 
       if (appointment.id_doctor !== userId) {
-        throw new BadRequestException('No autorizado');
+        throw new ForbiddenException('No autorizado');
       }
 
       if (appointment.status !== 'pending') {
@@ -101,10 +105,11 @@ export class AppointmentsService {
   async deleteAppointment(appointmentId: string, userId: string) {
     try {
       const appointment = await this.appointmentsRepo.findOne({
-        where: { id: appointmentId, id_user: userId },
+        where: { id: appointmentId },
       });
 
       if (!appointment) throw new NotFoundException('Cita no encontrada');
+      if (appointment.id_user !== userId) throw new ForbiddenException('No autorizado');
 
       await this.appointmentsRepo.delete(appointmentId);
 
