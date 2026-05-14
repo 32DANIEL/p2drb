@@ -6,9 +6,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { User } from './users/user.entity';
 import { Role } from './roles/role.entity';
+import { Appointment } from './appointments/appointment.entity';
 import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
+import { AppointmentsModule } from './appointments/appointments.module';
 
 @Module({
   imports: [
@@ -23,13 +25,14 @@ import { UsersModule } from './users/users.module';
         username: config.get('DB_USER'),
         password: config.get('DB_PASS'),
         database: config.get('DB_NAME'),
-        entities: [User, Role],
+        entities: [User, Role, Appointment],
         synchronize: false,
       }),
     }),
     AuthModule,
     RolesModule,
     UsersModule,
+    AppointmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
