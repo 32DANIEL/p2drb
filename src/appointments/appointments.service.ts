@@ -1,7 +1,7 @@
 /* eslint-disable prettier/prettier */
 import {
   BadRequestException,
-  ForbiddenException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -25,7 +25,7 @@ export class AppointmentsService {
   async createAppointment(userId: string, dto: CreateAppointmentDto) {
     try {
       const doctor = await this.usersRepo.findOne({ where: { id: dto.id_doctor } });
-      if (!doctor) throw new NotFoundException('Doctor no encontrado');
+      if (!doctor) throw new BadRequestException('no se puede procesar solicitud');
 
       const appointment = this.appointmentsRepo.create({
         id_user: userId,
@@ -37,13 +37,12 @@ export class AppointmentsService {
 
       const saved = await this.appointmentsRepo.save(appointment);
       return {
-        message: 'Cita creada con éxito',
+        message: 'se crea cita',
         citaId: saved.id,
       };
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
       if (error instanceof BadRequestException) throw error;
-      throw new InternalServerErrorException('Error al crear cita');
+      throw new InternalServerErrorException('no se puede procesar solicitud');
     }
   }
 
@@ -62,7 +61,7 @@ export class AppointmentsService {
 
       const appointments = await query.getMany();
 
-      return appointments.map((a) => ({
+      const citas = appointments.map((a) => ({
         id: a.id,
         datetime: a.datetime,
         status: a.status,
@@ -70,8 +69,10 @@ export class AppointmentsService {
         paciente: a.user?.name || a.user?.email,
         doctor: a.doctor?.name || a.doctor?.email,
       }));
+
+      return { message: 'se muestran citas segun validación de acceso', citas };
     } catch {
-      throw new InternalServerErrorException('Error al listar citas');
+      throw new BadRequestException('bad request');
     }
   }
 
@@ -81,24 +82,20 @@ export class AppointmentsService {
         where: { id: appointmentId },
       });
 
-      if (!appointment) throw new NotFoundException('Cita no encontrada');
+      if (!appointment) throw new NotFoundException('no encontrado');
 
-      if (appointment.id_doctor !== userId) {
-        throw new ForbiddenException('No autorizado');
-      }
-
-      if (appointment.status !== 'pending') {
-        throw new BadRequestException('Transición de estado no permitida');
+      if (appointment.id_doctor !== userId || appointment.status !== 'pending') {
+        throw new ConflictException('conflicto entre recursos');
       }
 
       appointment.status = dto.status;
       await this.appointmentsRepo.save(appointment);
 
-      return { message: 'Estado actualizado' };
+      return { message: 'se actualiza cita seleccionada' };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      if (error instanceof BadRequestException) throw error;
-      throw new InternalServerErrorException('Error al actualizar estado');
+      if (error instanceof ConflictException) throw error;
+      throw new InternalServerErrorException('conflicto entre recursos');
     }
   }
 
@@ -108,15 +105,16 @@ export class AppointmentsService {
         where: { id: appointmentId },
       });
 
-      if (!appointment) throw new NotFoundException('Cita no encontrada');
-      if (appointment.id_user !== userId) throw new ForbiddenException('No autorizado');
+      if (!appointment) throw new NotFoundException('no encontrado');
+      if (appointment.id_user !== userId) throw new ConflictException('conflicto entre recursos');
 
       await this.appointmentsRepo.delete(appointmentId);
 
-      return { message: 'Cita eliminada' };
+      return { message: 'se borra cita seleccionada' };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException('Error al eliminar cita');
+      if (error instanceof ConflictException) throw error;
+      throw new InternalServerErrorException('conflicto entre recursos');
     }
   }
 }

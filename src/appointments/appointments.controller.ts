@@ -4,9 +4,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
-  Patch,
   Post,
+  Put,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -18,14 +19,14 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { User } from '../users/user.entity';
 
-@Controller('citas')
+@Controller('')
 @UseGuards(JwtAuthGuard)
 export class AppointmentsController {
   constructor(private appointmentsService: AppointmentsService) {}
 
-  @Post()
+  @Post('crearcita')
   @UseGuards(RolesGuard)
-  @Roles('patient')
+  @Roles('patient', 'doctor')
   async create(
     @Request() req: { user: User },
     @Body() dto: CreateAppointmentDto,
@@ -33,27 +34,28 @@ export class AppointmentsController {
     return this.appointmentsService.createAppointment(req.user.id, dto);
   }
 
-  @Get()
+  @Get('citas')
   async list(@Request() req: { user: User }) {
     const userRole = req.user.roles?.[0]?.role_name || 'patient';
     return this.appointmentsService.listAppointments(req.user.id, userRole);
   }
 
-  @Patch(':id/estado')
+  @Put('citas/actualizarcitas/:idcita')
   @UseGuards(RolesGuard)
   @Roles('doctor')
   async updateStatus(
-    @Param('id') id: string,
+    @Param('idcita') id: string,
     @Request() req: { user: User },
     @Body() dto: UpdateStatusDto,
   ) {
     return this.appointmentsService.updateStatus(id, req.user.id, dto);
   }
 
-  @Delete(':id')
+  @Delete('citas/borrarcita/:idcita')
   @UseGuards(RolesGuard)
   @Roles('patient')
-  async delete(@Param('id') id: string, @Request() req: { user: User }) {
+  @HttpCode(204)
+  async delete(@Param('idcita') id: string, @Request() req: { user: User }) {
     return this.appointmentsService.deleteAppointment(id, req.user.id);
   }
 }
